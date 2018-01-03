@@ -15,6 +15,23 @@ module ODBCAdapter
         BindSubstitution.new(self)
       end
 
+      def select_rows(sql, cast_values: false)
+        cast_values ? select_all(sql).rows : type_uncast(select_all(sql).rows)
+      end
+
+      def type_uncast(values)
+        values.map{|value| value.map do |v| 
+          if v.nil? 
+            nil
+          elsif v.is_a? Time 
+            v.to_s[0..-7]
+          else 
+            v.to_s
+          end
+        end
+        }
+      end
+
       # Explicitly turning off prepared_statements in the null adapter because
       # there isn't really a standard on which substitution character to use.
       def prepared_statements
