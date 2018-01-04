@@ -78,7 +78,7 @@ module ODBCAdapter
     # is returned to ActiveRecord. Useful before a full adapter has made its way
     # back into this repository.
     def dbms_type_cast(_columns, values)
-      values
+      values.map{ |value| value.map{ |v| (v.is_a? Time) ? DateTime.parse(v.to_formatted_s(:db)) : v } }
     end
 
     # Assume received identifier is in DBMS's data dictionary case.

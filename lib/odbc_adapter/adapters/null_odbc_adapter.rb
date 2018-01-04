@@ -4,6 +4,8 @@ module ODBCAdapter
     # registry. This allows for minimal support for DBMSs for which we don't
     # have an explicit adapter.
     class NullODBCAdapter < ActiveRecord::ConnectionAdapters::ODBCAdapter
+      BOOLEAN_TYPE = 'bool'.freeze
+      PRIMARY_KEY  = 'SERIAL PRIMARY KEY'.freeze
       class BindSubstitution < Arel::Visitors::ToSql
         include Arel::Visitors::BindVisitor
       end
@@ -23,8 +25,8 @@ module ODBCAdapter
         values.map{|value| value.map do |v| 
           if v.nil? 
             nil
-          elsif v.is_a? Time 
-            v.to_s[0..-7]
+          elsif v.is_a? DateTime 
+            v.to_formatted_s(:db) 
           else 
             v.to_s
           end
