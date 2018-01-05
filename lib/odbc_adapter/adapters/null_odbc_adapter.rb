@@ -21,6 +21,10 @@ module ODBCAdapter
         cast_values ? select_all(sql).rows : type_uncast(select_all(sql).rows)
       end
 
+      def select_values(sql)
+        select_rows(sql).map(&:first)
+      end
+
       def type_uncast(values)
         values.map{|value| value.map do |v| 
           if v.nil? 
