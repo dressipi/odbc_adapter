@@ -33,7 +33,7 @@ module ODBCAdapter
         values  = stmt.to_a
         stmt.drop
 
-        values = dbms_type_cast(columns.values, values)
+        values = dbms_type_cast(columns, values)
         column_names = columns.keys.map { |key| format_case(key) }
         ActiveRecord::Result.new(column_names, values)
       end
@@ -78,8 +78,8 @@ module ODBCAdapter
     # is returned to ActiveRecord. Useful before a full adapter has made its way
     # back into this repository.
     def dbms_type_cast(_columns, values)
-      values.map{ |value| value.map{ |v| (v.is_a? Time) ? DateTime.parse(v.to_formatted_s(:db)) : v } }
     end
+
 
     # Assume received identifier is in DBMS's data dictionary case.
     def format_case(identifier)
