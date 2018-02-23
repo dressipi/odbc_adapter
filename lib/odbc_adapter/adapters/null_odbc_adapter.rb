@@ -62,8 +62,6 @@ module ODBCAdapter
       end
 
       def truncate_table(table_name)
-        require 'pry'
-        pry
         execute("TRUNCATE TABLE #{quote_table_name(table_name)}")
       end
 
