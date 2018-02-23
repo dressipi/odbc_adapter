@@ -19,11 +19,17 @@ module ODBCAdapter
       # is returned to ActiveRecord. Useful before a full adapter has made its way
       # back into this repository.
       def dbms_type_cast(_columns, values)
-        # values.map{ |value| value.map{ |v| (v.is_a? Time) ? DateTime.parse(v.to_formatted_s(:db)) : v } }
         values.map do |value| 
           _columns.zip(value).map do |c, v|
+            # Custom formatting for time object
+            # the default will be with timezone and without subsec
             if v.is_a? Time
-              DateTime.parse(v.to_formatted_s(:db))
+              result = v.to_formatted_s(:db)
+              if v.subsec > 0
+                result + v.strftime(".%3N")
+              else
+                result
+              end
             # Convert '1' and '0' to 't' and 'f'
             # this is done if the target 
             elsif ['1', '0'].include?(v) && is_bool_candidate(c[1]) 
