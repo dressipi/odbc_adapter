@@ -29,7 +29,7 @@ module ActiveRecord
 
       private
 
-      # Connect using config
+      # Connect using config with conn_str
       def odbc_conn_str_connection(config)
         driver = ODBC::Driver.new
         driver.name = 'odbc'
@@ -41,6 +41,9 @@ module ActiveRecord
           'UID' => config[:username],
           'PWD' => config[:password]
         }
+        if config[:conn_str]
+          driver.attrs = config[:conn_str].split(';').map { |option| option.split('=', 2) }.to_h
+        end
         
         connection = ODBC::Database.new.drvconnect(driver)
         [connection, config.merge(driver: driver)]
