@@ -21,14 +21,7 @@ module ActiveRecord
       def odbc_connection(config)
         config = config.symbolize_keys
 
-        connection, config =
-          if config.key?(:dsn)
-            odbc_dsn_connection(config)
-          elsif config.key?(:conn_str)
-            odbc_conn_str_connection(config)
-          else
-            raise ArgumentError, 'No data source name (:dsn) or connection string (:conn_str) specified.'
-          end
+        connection, config = odbc_conn_str_connection(config)
 
         database_metadata = ::ODBCAdapter::DatabaseMetadata.new(connection)
         database_metadata.adapter_class.new(connection, logger, config, database_metadata)
@@ -36,28 +29,25 @@ module ActiveRecord
 
       private
 
-      # Connect using a predefined DSN.
-      def odbc_dsn_connection(config)
-        username   = config[:username] ? config[:username].to_s : nil
-        password   = config[:password] ? config[:password].to_s : nil
-        connection = ODBC.connect(config[:dsn], username, password)
-        [connection, config.merge(username: username, password: password)]
-      end
-
-      # Connect using ODBC connection string
-      # Supports DSN-based or DSN-less connections
-      # e.g. "DSN=virt5;UID=rails;PWD=rails"
-      #      "DRIVER={OpenLink Virtuoso};HOST=carlmbp;UID=rails;PWD=rails"
+      # Connect using config
       def odbc_conn_str_connection(config)
         driver = ODBC::Driver.new
         driver.name = 'odbc'
-        driver.attrs = config[:conn_str].split(';').map { |option| option.split('=', 2) }.to_h
-
+        driver.attrs = {
+          'DRIVER' => config[:driverpath],
+          'SERVER' => config[:host],
+          'PORT' => config[:port].to_s,
+          'DATABASE' => config[:database],
+          'UID' => config[:username],
+          'PWD' => config[:password]
+        }
+        
         connection = ODBC::Database.new.drvconnect(driver)
         [connection, config.merge(driver: driver)]
       end
     end
   end
+
 
   module ConnectionAdapters
     class ODBCAdapter < AbstractAdapter
