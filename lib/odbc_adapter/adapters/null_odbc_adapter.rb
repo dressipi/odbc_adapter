@@ -30,6 +30,11 @@ module ODBCAdapter
               else
                 result
               end
+            # the internal type for ODBC::SQL_REAL is 7
+            # however REAL has a precision up to 4
+            # this is a workaround
+            elsif c[1].type == 7
+              v.round(4)
             # Convert '1' and '0' to 't' and 'f'
             # this is done if the target 
             elsif ['1', '0'].include?(v) && is_bool_candidate(c[1]) 
