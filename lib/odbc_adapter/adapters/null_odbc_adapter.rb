@@ -75,10 +75,12 @@ module ODBCAdapter
             # this is a workaround
             elsif type_is_?(c, 7)
               BigDecimal.new(v.to_s).add(0, 6).to_f
-            # Convert '1' and '0' to 't' and 'f'
-            # this is done if the target 
-            elsif ['1', '0'].include?(v) && is_bool_candidate(c[1]) 
-              v == '1' ? 't' : 'f'
+            # We have boolean type cast to smallint (SQL_SMALLINT as type 5)
+            # for the comfort of Amazon DMS
+            # now we need to convert it back
+            # But we also have boolean type which is 
+            elsif (['1', '0'].include?(v) && is_bool_candidate(c[1])) || type_is_?(c, 5)
+              v.to_i == 1 ? 't' : 'f'
             else
               v
             end
@@ -91,9 +93,10 @@ module ODBCAdapter
         i == f ? i : f
       end
 
-      # Boolean returns 
+      # returns true if it's Boolean 
+      # type is 12 (SQL_VARCHAR) and have certain rule on Redshift
       def is_bool_candidate(column)
-        column.length == 5 && column.precision == 5 && column.scale == 0
+        column.type == 12 && column.length == 5 && column.precision == 5 && column.scale == 0
       end
 
       def type_is_?(column, type_num)
