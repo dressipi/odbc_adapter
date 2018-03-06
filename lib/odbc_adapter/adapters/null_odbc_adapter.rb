@@ -18,6 +18,39 @@ module ODBCAdapter
       # A custom hook to allow end users to overwrite the type casting before it
       # is returned to ActiveRecord. Useful before a full adapter has made its way
       # back into this repository.
+      # The internal type conversion mapping can be found here
+      # https://www.easysoft.com/developer/languages/c/examples/ListDataTypes.html
+      # define SQL_UNKNOWN_TYPE        0
+      # define SQL_CHAR                1
+      # define SQL_NUMERIC             2
+      # define SQL_DECIMAL             3
+      # define SQL_INTEGER             4
+      # define SQL_SMALLINT            5
+      # define SQL_FLOAT               6
+      # define SQL_REAL                7
+      # define SQL_DOUBLE              8
+      # define SQL_DATETIME            9      ODBCVER >= 0x0300
+      # define SQL_DATE                9
+      # define SQL_INTERVAL            10     ODBCVER >= 0x0300
+      # define SQL_TIME                10
+      # define SQL_TIMESTAMP           11
+      # define SQL_VARCHAR             12
+
+      # define SQL_TYPE_DATE           91     ODBCVER >= 0x0300
+      # define SQL_TYPE_TIME           92     ODBCVER >= 0x0300
+      # define SQL_TYPE_TIMESTAMP      93     ODBCVER >= 0x0300
+
+      # define SQL_LONGVARCHAR         (-1)
+      # define SQL_BINARY              (-2)
+      # define SQL_VARBINARY           (-3)
+      # define SQL_LONGVARBINARY       (-4)
+      # define SQL_BIGINT              (-5)
+      # define SQL_TINYINT             (-6)
+      # define SQL_BIT                 (-7)
+      # define SQL_WCHAR               (-8)
+      # define SQL_WVARCHAR            (-9)
+      # define SQL_WLONGVARCHAR        (-10)
+      # define SQL_GUID      (-11)  ODBCVER >= 0x0350
       def dbms_type_cast(_columns, values)
         values.map do |value| 
           _columns.zip(value).map do |c, v|
@@ -30,12 +63,17 @@ module ODBCAdapter
               else
                 result
               end
+            # the internal type for ODBC::SQL_FLOAT is 6
+            # and we need to do trimming here
+            # (i.e. removing trailing zeroes)
+            elsif type_is_?(c, 6)
+              trim(v)
             # the internal type for ODBC::SQL_REAL is 7
             # the value returned with precision 9
             # and the rest will be floating discrepancy
             # however REAL has a scale up to 6
             # this is a workaround
-            elsif c[1].type == 7
+            elsif type_is_?(c, 7)
               BigDecimal.new(v.to_s).add(0, 6).to_f
             # Convert '1' and '0' to 't' and 'f'
             # this is done if the target 
@@ -48,9 +86,18 @@ module ODBCAdapter
         end
       end
 
+      def trim(num)
+        i, f = num.to_i, num.to_f
+        i == f ? i : f
+      end
+
       # Boolean returns 
       def is_bool_candidate(column)
         column.length == 5 && column.precision == 5 && column.scale == 0
+      end
+
+      def type_is_?(column, type_num)
+        column[1].type == type_num
       end
 
       # Using a BindVisitor so that the SQL string gets substituted before it is
@@ -66,6 +113,10 @@ module ODBCAdapter
 
       def select_values(sql)
         select_rows(sql).map(&:first)
+      end
+
+      def select_value(sql)
+        select_values(sql).first
       end
 
       def truncate_table(table_name)

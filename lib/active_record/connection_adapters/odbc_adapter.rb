@@ -101,12 +101,7 @@ module ActiveRecord
       # new connection with the database.
       def reconnect!
         disconnect!
-        @connection =
-          if @config.key?(:dsn)
-            ODBC.connect(@config[:dsn], @config[:username], @config[:password])
-          else
-            ODBC::Database.new.drvconnect(@config[:driver])
-          end
+        @connection = ODBC::Database.new.drvconnect(@config[:driver])
         configure_time_options(@connection)
         super
       end
