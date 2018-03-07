@@ -80,7 +80,7 @@ module ODBCAdapter
             # now we need to convert it back
             # But we also have boolean type which is 
             elsif (['1', '0'].include?(v) && is_bool_candidate(c[1])) || type_is_?(c, 5)
-              v.to_i == 1 ? 't' : 'f'
+              v.to_i == 1 ? true : false
             else
               v
             end
@@ -123,7 +123,29 @@ module ODBCAdapter
       end
 
       def truncate_table(table_name)
-        execute("TRUNCATE TABLE #{quote_table_name(table_name)}")
+        execute("TRUNCATE TABLE #{table_name}")
+      end
+
+      # We cannot replace tables_to_truncate method in 
+      # DatabaseCleaner::ActiveRecord::Truncation
+      # so here is a little hack to retrieve the needed
+      # tables for truncation
+      def truncate_tables(table_names)
+        table_select_sql = <<-SQL
+          SELECT table_name 
+          FROM information_schema.tables 
+          WHERE table_schema = (SELECT current_schema()) 
+            and table_type = 'BASE TABLE'
+        SQL
+        # Overwrite the original table_names variable
+        # because that entails all the tables/views
+        # in the entire database
+        table_names = exec_query(table_select_sql).rows
+
+        return if table_names.nil? || table_names.empty?
+        table_names.each do |table_name|
+          truncate_table(table_name)
+        end
       end
 
       def type_uncast(values)
@@ -133,6 +155,8 @@ module ODBCAdapter
               nil
             elsif v.is_a? DateTime 
               v.to_formatted_s(:db) 
+            elsif !!v == v
+              v ? 't' : 'f'
             else 
               v.to_s
             end
