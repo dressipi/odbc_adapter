@@ -1,6 +1,6 @@
 require 'active_record'
 require 'arel/visitors/bind_visitor'
-require 'odbc'
+require 'odbc_utf8'
 
 require 'odbc_adapter/database_limits'
 require 'odbc_adapter/database_statements'
