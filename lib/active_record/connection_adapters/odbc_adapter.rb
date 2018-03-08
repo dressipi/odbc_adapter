@@ -17,11 +17,17 @@ require 'odbc_adapter/version'
 module ActiveRecord
   class Base
     class << self
-      # Build a new ODBC connection with the given configuration.
+
       def odbc_connection(config)
         config = config.symbolize_keys
-
-        connection, config = odbc_conn_str_connection(config)
+        connection, config =
+          if config.key?(:dsn)
+            odbc_dsn_connection(config)
+          elsif config.key?(:conn_str)
+            odbc_conn_str_connection(config)
+          else
+            odbc_explicit_connection(config)
+          end
 
         database_metadata = ::ODBCAdapter::DatabaseMetadata.new(connection)
         database_metadata.adapter_class.new(connection, logger, config, database_metadata)
@@ -29,22 +35,63 @@ module ActiveRecord
 
       private
 
-      # Connect using config with conn_str
+      def odbc_dsn_connection(config)
+        username = config[:username] ? config[:username].to_s : nil
+        password = config[:password] ? config[:password].to_s : nil
+        connection = ODBC.connect(config[:dsn], username, password)
+        [connection, config.merge(username: username, password: password)]
+      end
+
       def odbc_conn_str_connection(config)
         driver = ODBC::Driver.new
         driver.name = 'odbc'
-        driver.attrs = {
-          'DRIVER' => config[:driverpath],
-          'SERVER' => config[:host],
-          'PORT' => config[:port].to_s,
-          'DATABASE' => config[:database],
-          'UID' => config[:username],
-          'PWD' => config[:password]
-        }
-        if config[:conn_str]
-          driver.attrs = config[:conn_str].split(';').map { |option| option.split('=', 2) }.to_h
+        driver.attrs =
+          config[:conn_str]
+          .split(';')
+          .map { |option| option.split('=', 2) }
+          .to_h
+        connection = ODBC::Database.new.drvconnect(driver)
+        [connection, config.merge(driver: driver)]
+      end
+
+      def odbc_conn_explicit_connection(config)
+        driver = ODBC::Driver.new
+        driver.name = 'odbc'
+
+        # backwards compatibility and warning
+
+        if config.key? :driverpath then
+          config[:drivername] = config.delete(:driverpath)
+          warn('config :driverpath found, use :drivername instead')
         end
-        
+
+        # map configuration attributes to driver attributes
+
+        attr_map = {
+          drivername: 'DRIVER',
+          host: 'SERVER',
+          port: 'PORT',
+          database: 'DATABASE',
+          username: 'UID',
+          password: 'PWD'
+        }
+
+        # require all of these configration options (there might be a case for
+        # skipping those not present, do it like this for now)
+
+        attr_map.keys.each do |key|
+          unless config.key? key then
+            raise ArgumentError, "required configuration key #{key} absent"
+          end
+          unless config[key] then
+            raise ArgumentError, "required configuration value for #{key} absent"
+          end
+        end
+
+        driver.attrs = attr_map.each_with_object(Hash.new) do |(key, value), result|
+          result[value] = config[key].to_s
+        end
+
         connection = ODBC::Database.new.drvconnect(driver)
         [connection, config.merge(driver: driver)]
       end
