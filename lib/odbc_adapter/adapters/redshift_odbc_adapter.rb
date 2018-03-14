@@ -1,8 +1,23 @@
 module ODBCAdapter
   module Adapters
     class RedshiftODBCAdapter < ActiveRecord::ConnectionAdapters::ODBCAdapter
-      BOOLEAN_TYPE = 'bool'.freeze
-      PRIMARY_KEY  = 'BIGINT IDENTITY(0,1) PRIMARY KEY'.freeze
+
+      def native_database_types
+        {
+          :primary_key=> "BIGINT IDENTITY(0,1) PRIMARY KEY",
+          :string => { :name => "VARCHAR", :limit=>255},
+          :text => { :name => "text"},
+          :integer => { :name => "int4"},
+          :decimal => { :name => "numeric"},
+          :float => { :name => "float8"},
+          :datetime => { :name => "timestamp"},
+          :timestamp => { :name => "timestamp"},
+          :time => { :name => "timestamp"},
+          :date => { :name => "date"},
+          :binary => { :name => "bytea"},
+          :boolean => { :name => "boolean"}
+        }
+      end
 
       class BindSubstitution < Arel::Visitors::ToSql
         include Arel::Visitors::BindVisitor
