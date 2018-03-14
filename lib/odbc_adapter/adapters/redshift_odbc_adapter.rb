@@ -4,6 +4,10 @@ module ODBCAdapter
 
       BOOLEAN_TYPE = 'bool'
 
+      class_attribute :emulate_booleans
+
+      self.emulate_booleans = false
+
       def native_database_types
         {
           :primary_key=> "BIGINT IDENTITY(1,1) PRIMARY KEY",
@@ -96,6 +100,68 @@ module ODBCAdapter
         execute("ALTER INDEX #{quote_column_name(old_name)} RENAME TO #{quote_table_name(new_name)}")
       end
 
+
+      # Maps logical Rails types to redshift-specific data types.
+      def type_to_sql(type, limit: nil, precision: nil, scale: nil, array: nil, **)
+        sql = \
+          case type.to_s
+          when "integer"
+            case limit
+            when 1, 2; "smallint"
+            when nil, 3, 4; "integer"
+            when 5..8; "bigint"
+            else raise(ActiveRecordError, "No integer type has byte size #{limit}. Use a numeric with scale 0 instead.")
+            end
+          else
+            super
+          end
+
+        sql
+      end
+
+
+      def quoted_true
+        if emulate_booleans
+          "1".freeze
+        else
+          super
+        end
+      end
+
+
+      def quoted_false
+        if emulate_booleans
+          "0".freeze
+        else
+          super
+        end
+      end
+
+      def unquoted_true
+        if emulate_booleans
+          1
+        else
+          super
+        end
+      end
+
+
+      def unquoted_false
+        if emulate_booleans
+          0
+        else
+          super
+        end
+      end
+
+      protected
+
+
+
+      def initialize_type_map(map)
+        super
+        map.register_type ODBC::SQL_SMALLINT, ActiveRecord::Type::Boolean.new if emulate_booleans
+      end
     end
   end
 end
