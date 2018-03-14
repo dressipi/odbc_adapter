@@ -2,6 +2,8 @@ module ODBCAdapter
   module Adapters
     class RedshiftODBCAdapter < ActiveRecord::ConnectionAdapters::ODBCAdapter
 
+      BOOLEAN_TYPE = 'bool'
+
       def native_database_types
         {
           :primary_key=> "BIGINT IDENTITY(1,1) PRIMARY KEY",
