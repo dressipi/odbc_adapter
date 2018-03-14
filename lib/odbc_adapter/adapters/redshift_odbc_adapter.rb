@@ -4,7 +4,7 @@ module ODBCAdapter
 
       def native_database_types
         {
-          :primary_key=> "BIGINT IDENTITY(0,1) PRIMARY KEY",
+          :primary_key=> "BIGINT IDENTITY(1,1) PRIMARY KEY",
           :string => { :name => "VARCHAR", :limit=>255},
           :text => { :name => "text"},
           :integer => { :name => "int4"},
