@@ -1,6 +1,9 @@
 module ODBCAdapter
   module Adapters
     class RedshiftODBCAdapter < ActiveRecord::ConnectionAdapters::ODBCAdapter
+      BOOLEAN_TYPE = 'bool'.freeze
+      PRIMARY_KEY  = 'BIGINT IDENTITY(0,1) PRIMARY KEY'.freeze
+
       class BindSubstitution < Arel::Visitors::ToSql
         include Arel::Visitors::BindVisitor
       end
