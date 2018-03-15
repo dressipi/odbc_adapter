@@ -58,32 +58,60 @@ module ODBCAdapter
 
     # Returns an array of Column objects for the table specified by
     # +table_name+.
-    def columns(table_name, _name = nil)
-      stmt   = @connection.columns(native_case(table_name.to_s))
-      result = stmt.fetch_all || []
-      stmt.drop
+    if ActiveRecord::VERSION::MAJOR >= 5
+      def columns(table_name, _name = nil)
+        stmt   = @connection.columns(native_case(table_name.to_s))
+        result = stmt.fetch_all || []
+        stmt.drop
 
-      result.each_with_object([]) do |col, cols|
-        col_name        = col[3]  # SQLColumns: COLUMN_NAME
-        col_default     = col[12] # SQLColumns: COLUMN_DEF
-        col_sql_type    = col[4]  # SQLColumns: DATA_TYPE
-        col_native_type = col[5]  # SQLColumns: TYPE_NAME
-        col_limit       = col[6]  # SQLColumns: COLUMN_SIZE
-        col_scale       = col[8]  # SQLColumns: DECIMAL_DIGITS
+        result.each_with_object([]) do |col, cols|
+          col_name        = col[3]  # SQLColumns: COLUMN_NAME
+          col_default     = col[12] # SQLColumns: COLUMN_DEF
+          col_sql_type    = col[4]  # SQLColumns: DATA_TYPE
+          col_native_type = col[5]  # SQLColumns: TYPE_NAME
+          col_limit       = col[6]  # SQLColumns: COLUMN_SIZE
+          col_scale       = col[8]  # SQLColumns: DECIMAL_DIGITS
 
-        # SQLColumns: IS_NULLABLE, SQLColumns: NULLABLE
-        col_nullable = nullability(col_name, col[17], col[10])
+          # SQLColumns: IS_NULLABLE, SQLColumns: NULLABLE
+          col_nullable = nullability(col_name, col[17], col[10])
 
-        args = { sql_type: col_sql_type, type: col_sql_type, limit: col_limit }
-        args[:sql_type] = 'boolean' if col_native_type == self.class::BOOLEAN_TYPE
+          args = { sql_type: col_sql_type, type: col_sql_type, limit: col_limit }
+          args[:sql_type] = 'boolean' if col_native_type == self.class::BOOLEAN_TYPE
 
-        if [ODBC::SQL_DECIMAL, ODBC::SQL_NUMERIC].include?(col_sql_type)
-          args[:scale]     = col_scale || 0
-          args[:precision] = col_limit
+          if [ODBC::SQL_DECIMAL, ODBC::SQL_NUMERIC].include?(col_sql_type)
+            args[:scale]     = col_scale || 0
+            args[:precision] = col_limit
+          end
+          sql_type_metadata = ActiveRecord::ConnectionAdapters::SqlTypeMetadata.new(**args)
+
+          cols << new_column(format_case(col_name), col_default, sql_type_metadata, col_nullable, table_name, col_native_type)
         end
-        sql_type_metadata = ActiveRecord::ConnectionAdapters::SqlTypeMetadata.new(**args)
+      end
+    else
+      def columns(table_name, name = nil)
+        stmt   = @connection.columns(native_case(table_name.to_s))
+        result = stmt.fetch_all || []
+        stmt.drop
 
-        cols << new_column(format_case(col_name), col_default, sql_type_metadata, col_nullable, table_name, col_native_type)
+        result.each_with_object([]) do |col, cols|
+          col_name        = col[3]  # SQLColumns: COLUMN_NAME
+          col_default     = col[12] # SQLColumns: COLUMN_DEF
+          col_sql_type    = col[4]  # SQLColumns: DATA_TYPE
+          col_native_type = col[5]  # SQLColumns: TYPE_NAME
+          col_limit       = col[6]  # SQLColumns: COLUMN_SIZE
+          col_scale       = col[8]  # SQLColumns: DECIMAL_DIGITS
+
+          # SQLColumns: IS_NULLABLE, SQLColumns: NULLABLE
+          col_nullable = nullability(col_name, col[17], col[10])
+
+          cast_type = if col_native_type == self.class::BOOLEAN_TYPE
+              ActiveRecord::Type::Boolean.new
+            else
+              lookup_cast_type(col_sql_type)
+            end
+
+          cols << new_column(format_case(col_name), col_default, cast_type, col_sql_type, col_nullable, col_native_type, col_scale, col_limit)
+        end
       end
     end
 

@@ -36,6 +36,10 @@ module ODBCAdapter
         BindSubstitution.new(self)
       end
 
+      if ActiveRecord::VERSION::MAJOR < 5
+        alias_method :visitor, :arel_visitor
+      end
+      
       # Explicitly turning off prepared_statements in the null adapter because
       # there isn't really a standard on which substitution character to use.
       def prepared_statements
@@ -101,22 +105,32 @@ module ODBCAdapter
       end
 
 
-      # Maps logical Rails types to redshift-specific data types.
-      def type_to_sql(type, limit: nil, precision: nil, scale: nil, array: nil, **)
-        sql = \
-          case type.to_s
-          when "integer"
-            case limit
-            when 1, 2; "smallint"
-            when nil, 3, 4; "integer"
-            when 5..8; "bigint"
-            else raise(ActiveRecordError, "No integer type has byte size #{limit}. Use a numeric with scale 0 instead.")
-            end
-          else
-            super
-          end
 
-        sql
+
+      # Maps logical Rails types to redshift-specific data types.
+      if ActiveRecord::VERSION::MAJOR >= 5
+        def type_to_sql(type, limit: nil, precision: nil, scale: nil, array: nil, **)
+          sql = \
+            case type.to_s
+            when "integer"
+              integer_type_to_sql(limit)
+            else
+              super
+            end
+
+          sql
+        end
+      else
+        def type_to_sql(type, limit = nil, precision = nil, scale = nil)
+          sql = \
+            case type.to_s
+            when "integer"
+              integer_type_to_sql(limit)
+            else
+              super
+            end
+          sql
+        end
       end
 
 
@@ -156,7 +170,14 @@ module ODBCAdapter
 
       protected
 
-
+      def integer_type_to_sql(limit)
+        case limit
+        when 1, 2; "smallint"
+        when nil, 3, 4; "integer"
+        when 5..8; "bigint"
+        else raise(ActiveRecordError, "No integer type has byte size #{limit}. Use a numeric with scale 0 instead.")
+        end
+      end
 
       def initialize_type_map(map)
         super

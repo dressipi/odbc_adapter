@@ -79,7 +79,14 @@ module ActiveRecord
 
       def initialize(connection, logger, config, database_metadata)
         configure_time_options(connection)
-        super(connection, logger, config)
+
+        if ActiveRecord::VERSION::MAJOR >= 5
+          super(connection, logger, config)
+        else
+          super(connection, logger)
+          @config = config
+        end
+
         @database_metadata = database_metadata
       end
 
@@ -127,8 +134,14 @@ module ActiveRecord
       # Build a new column object from the given options. Effectively the same
       # as super except that it also passes in the native type.
       # rubocop:disable Metrics/ParameterLists
-      def new_column(name, default, sql_type_metadata, null, table_name, default_function = nil, collation = nil, native_type = nil)
-        ::ODBCAdapter::Column.new(name, default, sql_type_metadata, null, table_name, default_function, collation, native_type)
+      if ActiveRecord::VERSION::MAJOR >= 5
+        def new_column(name, default, sql_type_metadata, null, table_name, default_function = nil, collation = nil, native_type = nil)
+          ::ODBCAdapter::Column.new(name, default, sql_type_metadata, null, table_name, default_function, collation, native_type)
+        end
+      else
+        def new_column(name, default, cast_type, sql_type = nil, null = true, native_type = nil, scale = nil, limit = nil)
+          ::ODBCAdapter::Column.new(name, default, cast_type, sql_type, null, native_type, scale, limit)
+        end
       end
 
       protected
