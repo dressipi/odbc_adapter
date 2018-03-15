@@ -16,7 +16,7 @@ module ODBCAdapter
     attr_reader :values
 
     def initialize(connection)
-      @values = Hash[FIELDS.map { |field| [field, connection.get_info(ODBC.const_get(field))] }]
+      @values = Hash[FIELDS.map { |field| [field, fix_encoding(connection.get_info(ODBC.const_get(field)))] }]
     end
 
     def adapter_class
@@ -36,6 +36,18 @@ module ODBCAdapter
     end
 
     private
+
+    def fix_encoding(value)
+      # when odbc is in unicode mode, it doesn't encode the results of get_info properly - the 
+      # underlying utf-16 encoding leaks through as ascii-8but
+      # This is true as of 0.99999
+      #
+      if ODBC::UTF8 && value.is_a?(String) && value.encoding == Encoding::BINARY
+        value.force_encoding('UTF-16LE').encode('UTF-8')
+      else
+        value
+      end
+    end
 
     def value_for(field)
       values[field]
