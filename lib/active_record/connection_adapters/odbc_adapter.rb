@@ -26,6 +26,8 @@ module ActiveRecord
             odbc_dsn_connection(config)
           elsif config.key?(:conn_str)
             odbc_conn_str_connection(config)
+          elsif config.key?(:driverpath)
+            odbc_hash_connection(config)
           else
             raise ArgumentError, 'No data source name (:dsn) or connection string (:conn_str) specified.'
           end
@@ -52,6 +54,23 @@ module ActiveRecord
         driver = ODBC::Driver.new
         driver.name = 'odbc'
         driver.attrs = config[:conn_str].split(';').map { |option| option.split('=', 2) }.to_h
+
+        connection = ODBC::Database.new.drvconnect(driver)
+        [connection, config.merge(driver: driver)]
+      end
+
+      def odbc_hash_connection(config)
+        driver = ODBC::Driver.new
+        driver.name = 'odbc'
+
+        driver.attrs = {
+          'DRIVER' => config[:driverpath],
+          'SERVER' => config[:host],
+          'PORT' => config[:port].to_s,
+          'DATABASE' => config[:database],
+          'UID' => config[:username],
+          'PWD' => config[:password]
+        }
 
         connection = ODBC::Database.new.drvconnect(driver)
         [connection, config.merge(driver: driver)]
