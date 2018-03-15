@@ -72,6 +72,12 @@ module ODBCAdapter
       "#{table}_seq"
     end
 
+    unless method_defined?(:select_rows)
+      def select_rows(arel, name = nil, binds = [])
+        select_all(arel, name, binds).rows
+      end
+    end
+
     private
 
     # A custom hook to allow end users to overwrite the type casting before it

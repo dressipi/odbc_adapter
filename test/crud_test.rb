@@ -25,6 +25,26 @@ class CRUDTest < Minitest::Test
     end
   end
 
+  def test_select_all
+    expected = [{ "first_name" => 'Ash', "last_name" => 'Hepburn', "letters" => 10  },
+                { "first_name" => 'Kevin', "last_name" => 'Deisz', "letters" => 10 },
+                { "first_name" => 'Michal', "last_name" => 'Klos', "letters" => 10 },
+                ]
+
+    assert_equal expected,
+                User.connection.select_all("SELECT first_name, last_name, letters from users where letters = 10 ORDER by first_name ASC").to_hash
+  end
+
+  def test_select_rows
+    expected = [[ 'Ash',  'Hepburn',  10 ],
+                [ 'Kevin',  'Deisz',  10 ],
+                [ 'Michal',  'Klos',  10 ],
+                ]
+
+    assert_equal expected,
+                User.connection.select_rows("SELECT first_name, last_name, letters from users where letters = 10 ORDER by first_name ASC")
+  end
+
   private
 
   def with_transaction(&_block)
