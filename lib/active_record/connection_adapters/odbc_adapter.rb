@@ -14,6 +14,8 @@ require 'odbc_adapter/database_metadata'
 require 'odbc_adapter/registry'
 require 'odbc_adapter/version'
 
+require 'strscan'
+
 module ActiveRecord
   class Base
     class << self
@@ -51,20 +53,21 @@ module ActiveRecord
       def odbc_conn_str_connection(config)
         driver = ODBC::Driver.new
         driver.name = 'odbc'
-        driver.attrs = config[:conn_str].split(';').map { |option| option.split('=', 2) }.to_h
-
-        driver.attrs.merge!({
+        attrs_from_config = {
           'DRIVER' => config[:driverpath],
           'SERVER' => config[:host],
           'PORT' => config[:port].to_s,
           'DATABASE' => config[:database],
           'UID' => config[:username],
           'PWD' => config[:password]
-        }.reject {|_,value| value.blank?})
+        }.reject {|_,value| value.blank?}
 
+        attrs_from_config.merge!(ConnectionAdapters::ODBCAdapter.odbc_parse_connection_string(config[:conn_str]))
+        driver.attrs = attrs_from_config
         connection = ODBC::Database.new.drvconnect(driver)
         [connection, config.merge(driver: driver)]
       end
+
     end
   end
 
@@ -151,6 +154,34 @@ module ActiveRecord
         def new_column(name, default, cast_type, sql_type = nil, null = true, native_type = nil, scale = nil, limit = nil)
           ::ODBCAdapter::Column.new(name, default, cast_type, sql_type, null, native_type, scale, limit)
         end
+      end
+
+      def self.odbc_parse_connection_string(string)
+        scanner = StringScanner.new(string)
+        result = {}
+        while !scanner.eos?
+          key = scanner.scan(/[^=]+/)
+          scanner.skip(/=/)
+          value = case scanner.peek(1)
+          when '"' 
+            scanner.skip(/"/)
+            scanner.scan(/[^"]*/)
+          when "'" 
+            scanner.skip(/'/)
+            scanner.scan(/[^']*/)
+          else
+            scanner.scan(/[^;]+/).strip
+          end
+          
+          if key && value
+            result[key]=value
+          else
+            raise "invalid connection string #{string}"
+          end
+
+          scanner.scan_until(/;/) || break
+        end
+        result
       end
 
       protected
