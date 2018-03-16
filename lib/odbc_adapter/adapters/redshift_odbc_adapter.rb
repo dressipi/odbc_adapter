@@ -212,6 +212,7 @@ module ODBCAdapter
           with_index.
           select do |col, _index| 
             (emulate_booleans && col.type == ODBC::SQL_SMALLINT) ||
+            col.type == ODBC::SQL_BIT ||
             string_masquerading_as_boolean?(col)
           end.
           map {|_col, index| index}
