@@ -183,6 +183,29 @@ module ODBCAdapter
         super
         map.register_type ODBC::SQL_SMALLINT, ActiveRecord::Type::Boolean.new if emulate_booleans
       end
+
+      def dbms_type_cast(columns, values)
+        if emulate_booleans
+          boolean_indices = columns.each.
+                                    with_index.
+                                    select {|col, _index| col.type == ODBC::SQL_SMALLINT } .
+                                    map {|_col, index| index}
+          if boolean_indices.any?
+            values.each do |row|
+              boolean_indices.each do |index|
+                row[index] = case row[index]
+                  when 1 then true
+                  when 0 then false
+                  when nil then nil
+                  else
+                    raise "Unexpected boolean value #{row[index].inspect}"
+                  end
+              end
+            end
+          end
+        end
+        values
+      end
     end
   end
 end

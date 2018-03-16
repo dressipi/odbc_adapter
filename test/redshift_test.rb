@@ -27,6 +27,9 @@ class RedshiftTest < Minitest::Test
         assert_equal(true, BooleanFoo.find_by_name("is_true").flag)
         assert_equal(false,BooleanFoo.find_by_name("is_false").flag)
 
+        raw = BooleanFoo.connection.select_rows("select name,flag from boolean_foos")
+        assert_equal([["is_true", true], ["is_false", false]], raw)
+
         @connection.emulate_booleans = false
         @connection.send(:reload_type_map)
         BooleanFoo.reset_column_information
