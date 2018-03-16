@@ -224,6 +224,15 @@ module ODBCAdapter
         column.type == ODBC::SQL_VARCHAR &&
         column.length == 5
       end
+
+      private
+
+      def configure_connection(connection)
+        super
+        if @config[:schema_search_path]
+          execute("SET search_path to #{@config[:schema_search_path]}")
+        end
+      end
     end
   end
 end
