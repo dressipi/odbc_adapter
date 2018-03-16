@@ -90,14 +90,15 @@ module ActiveRecord
       attr_reader :database_metadata
 
       def initialize(connection, logger, config, database_metadata)
-        configure_time_options(connection)
-
+        
         if ActiveRecord::VERSION::MAJOR >= 5
           super(connection, logger, config)
         else
           super(connection, logger)
           @config = config
         end
+
+        configure_connection(connection)
 
         @database_metadata = database_metadata
       end
@@ -132,7 +133,7 @@ module ActiveRecord
           else
             ODBC::Database.new.drvconnect(@config[:driver])
           end
-        configure_time_options(@connection)
+        configure_connection(@connection)
         super
       end
       alias reset! reconnect!
@@ -248,6 +249,10 @@ module ActiveRecord
       def configure_time_options(connection)
         connection.use_time = true
         connection.use_utc = (ActiveRecord::Base.default_timezone == :utc)
+      end
+
+      def configure_connection(connection)
+        configure_time_options(connection)
       end
     end
   end
