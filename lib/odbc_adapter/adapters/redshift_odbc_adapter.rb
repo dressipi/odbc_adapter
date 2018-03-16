@@ -8,6 +8,11 @@ module ODBCAdapter
 
       self.emulate_booleans = false
 
+      def initialize(connection, logger, config, database_metadata)
+        super
+        @emulate_booleans = !! config[:emulate_booleans]
+      end
+
       def native_database_types
         {
           :primary_key=> "BIGINT IDENTITY(1,1) PRIMARY KEY",
