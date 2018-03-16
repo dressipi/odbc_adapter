@@ -226,6 +226,7 @@ module ActiveRecord
       # Ensure ODBC is mapping time-based fields to native ruby objects
       def configure_time_options(connection)
         connection.use_time = true
+        connection.use_utc = (ActiveRecord::Base.default_timezone == :utc)
       end
     end
   end
