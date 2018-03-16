@@ -2,6 +2,11 @@ require 'simplecov'
 SimpleCov.start
 
 $LOAD_PATH.unshift File.expand_path('../../lib', __FILE__)
+
+if ENV["ODBC_UTF8"]
+  require 'odbc_utf8'
+end
+
 require 'odbc_adapter'
 
 require 'minitest/autorun'
