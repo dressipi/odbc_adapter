@@ -7,6 +7,11 @@ class RedshiftTest < Minitest::Test
     class BooleanFoo < ActiveRecord::Base
     end
 
+    def test_actual_booleans
+      raw = ActiveRecord::Base.connection.select_rows("select id, published from todos order by id asc limit 1")
+      assert_equal([[1, true]], raw)
+    end
+      
     describe 'emulate_booleans = true' do
 
       def setup
@@ -27,7 +32,7 @@ class RedshiftTest < Minitest::Test
         assert_equal(true, BooleanFoo.find_by_name("is_true").flag)
         assert_equal(false,BooleanFoo.find_by_name("is_false").flag)
 
-        raw = BooleanFoo.connection.select_rows("select name,flag from boolean_foos")
+        raw = BooleanFoo.connection.select_rows("select name,flag from boolean_foos order by id")
         assert_equal([["is_true", true], ["is_false", false]], raw)
 
         @connection.emulate_booleans = false

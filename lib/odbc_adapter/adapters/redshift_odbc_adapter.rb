@@ -185,26 +185,38 @@ module ODBCAdapter
       end
 
       def dbms_type_cast(columns, values)
-        if emulate_booleans
-          boolean_indices = columns.each.
-                                    with_index.
-                                    select {|col, _index| col.type == ODBC::SQL_SMALLINT } .
-                                    map {|_col, index| index}
-          if boolean_indices.any?
-            values.each do |row|
-              boolean_indices.each do |index|
-                row[index] = case row[index]
-                  when 1 then true
-                  when 0 then false
-                  when nil then nil
-                  else
-                    raise "Unexpected boolean value #{row[index].inspect}"
-                  end
-              end
+        boolean_indices = boolean_column_indices(columns)
+        if boolean_indices.any?
+          values.each do |row|
+            boolean_indices.each do |index|
+              row[index] = case row[index]
+                when 1,'1' then true
+                when 0,'0' then false
+                when nil then nil
+                else
+                  raise "Unexpected boolean value #{row[index].inspect}"
+                end
             end
           end
         end
         values
+      end
+
+      def boolean_column_indices(columns)
+        columns.each.
+          with_index.
+          select do |col, _index| 
+            (emulate_booleans && col.type == ODBC::SQL_SMALLINT) ||
+            string_masquerading_as_boolean?(col)
+          end.
+          map {|_col, index| index}
+      end
+
+      # although redshift has a boolean type, driver returns booleans as strings
+      #
+      def string_masquerading_as_boolean?(column)
+        column.type == ODBC::SQL_VARCHAR &&
+        column.length == 5
       end
     end
   end
