@@ -16,6 +16,16 @@ class ConnectionManagementTest < Minitest::Test
     conn.reconnect!
   end
 
+
+  def test_reconnect_within_a_transaction
+    assert conn.active?
+    conn.transaction do
+      conn.execute("select 1")
+      conn.reconnect!
+    end
+    assert conn.active?
+  end
+
   private
 
   def conn

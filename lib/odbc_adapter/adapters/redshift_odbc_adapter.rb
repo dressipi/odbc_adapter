@@ -177,6 +177,14 @@ module ODBCAdapter
         end
       end
 
+      def disconnect!
+        if @connection.connected?
+          @connection.rollback #disconnect fails if there is an open transaction
+          @connection.disconnect 
+        end
+      end
+
+
       protected
 
       def integer_type_to_sql(limit)
