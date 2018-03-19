@@ -9,8 +9,8 @@ class ODBCAdapter::Adapters::RedshiftODBCAdapter
   #
   def database_cleaner_table_cache
     begin
-      select_rows( "select schema, 'table' from svv_table_info").map do |row|
-        "#{quote_table_name(row[0])}.#{quote_table_name[1]}"
+      select_rows( 'select schema, "table" from svv_table_info').map do |row|
+        "#{quote_table_name(row[0])}.#{quote_table_name(row[1])}"
       end
     rescue ActiveRecord::StatementInvalid => e
       ActiveRecord::Base.logger&.info("falling back to information_schema.tables which is slower than svv_table_info: #{e.message}")

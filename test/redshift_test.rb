@@ -1,5 +1,5 @@
 require 'test_helper'
-
+require 'odbc_adapter/database_cleaner'
 class RedshiftTest < Minitest::Test
 
   if ActiveRecord::Base.connection.is_a?(ODBCAdapter::Adapters::RedshiftODBCAdapter)
@@ -25,7 +25,7 @@ class RedshiftTest < Minitest::Test
           t.integer :flag, limit: 2
           t.string :name
         end
-
+        BooleanFoo.reset_column_information
         BooleanFoo.create(flag: true, name: "is_true")
         BooleanFoo.create(flag: false, name: "is_false")
 
@@ -51,6 +51,41 @@ class RedshiftTest < Minitest::Test
         @connection.send(:reload_type_map)
       end
     end
+
+    describe 'database cleaner_additions' do
+      def setup
+        @connection = User.connection
+
+        @connection.create_table(:boolean_foos, force: true) do |t|
+          t.boolean :flag
+          t.string :name
+        end
+        BooleanFoo.reset_column_information
+      end
+
+      def teardown
+        @connection.drop_table("boolean_foos")
+      end
+
+      def test_truncate
+        BooleanFoo.create(flag: true, name: "is_true")
+        @connection.truncate_table("boolean_foos")
+        assert_equal(BooleanFoo.count, 0)
+      end
+
+      #requires that the user have 
+      #select permission on svv_table_info
+      #
+      def test_optimized_database_cleaner_table_cache
+        assert_equal(['"public"."ar_internal_metadata"', '"public"."todos"', '"public"."users"'], @connection.database_cleaner_table_cache.sort)
+        BooleanFoo.create(flag: true, name: "is_true")
+        assert_equal(['"public"."ar_internal_metadata"', '"public"."boolean_foos"', '"public"."todos"', '"public"."users"'], @connection.database_cleaner_table_cache.sort)
+        @connection.truncate_table("boolean_foos")
+        assert_equal(['"public"."ar_internal_metadata"', '"public"."todos"', '"public"."users"'], @connection.database_cleaner_table_cache.sort)
+      end
+
+    end
+
 
     describe 'set search path' do
       class ConnectionWithOption < ActiveRecord::Base
