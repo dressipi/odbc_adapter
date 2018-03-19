@@ -51,5 +51,19 @@ class RedshiftTest < Minitest::Test
         @connection.send(:reload_type_map)
       end
     end
+
+    describe 'set search path' do
+      class ConnectionWithOption < ActiveRecord::Base
+        self.abstract_class = true
+      end
+
+      def test_can_be_set_from_configuration
+        ConnectionWithOption.establish_connection(
+          ActiveRecord::Base.connection_config.merge(:schema_search_path => "information_schema, public")
+        )
+        assert_equal({"search_path" => "information_schema, public"},
+                       ConnectionWithOption.connection.select_one("show search_path"))
+      end
+    end
   end
 end
