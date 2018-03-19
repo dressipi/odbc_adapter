@@ -13,6 +13,10 @@ module ODBCAdapter
         @emulate_booleans = !! config[:emulate_booleans]
       end
 
+      def table_filtered?(schema_name, table_type)
+        %w[information_schema pg_catalog].include?(schema_name) || table_type !~ /TABLE/i
+      end
+
       def native_database_types
         {
           :primary_key=> "BIGINT IDENTITY(1,1) PRIMARY KEY",
