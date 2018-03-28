@@ -114,6 +114,19 @@ module ODBCAdapter
       end
 
 
+      def schema_search_path=(schema_csv)
+        if schema_csv
+          execute("SET search_path TO #{schema_csv}", 'SCHEMA')
+          @schema_search_path = schema_csv
+        end
+      end
+
+      # Returns the active schema search path.
+      # this only returns the first entry, to preserve the behaviour the rails has
+      # with postgres
+      def schema_search_path
+        @schema_search_path ||= select_rows('SHOW search_path', 'SCHEMA')[0][0]
+      end
 
 
       # Maps logical Rails types to redshift-specific data types.
@@ -242,7 +255,7 @@ module ODBCAdapter
       def configure_connection(connection)
         super
         if @config[:schema_search_path]
-          execute("SET search_path to #{@config[:schema_search_path]}")
+          self.schema_search_path = @config[:schema_search_path]
         end
       end
     end
