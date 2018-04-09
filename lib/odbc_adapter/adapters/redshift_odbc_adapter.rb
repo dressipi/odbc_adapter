@@ -198,7 +198,13 @@ module ODBCAdapter
       end
 
 
+      # redshift requires this, likely due to its postgres heritage
+      def quote_table_name_for_assignment(table, attr)
+        quote_column_name(attr)
+      end
+
       protected
+
 
       def integer_type_to_sql(limit)
         case limit

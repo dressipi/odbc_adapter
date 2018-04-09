@@ -18,6 +18,14 @@ class CRUDTest < Minitest::Test
     end
   end
 
+  def test_update_all
+    with_transaction do
+      User.update_all(letters: 47)
+      user = User.first
+      assert_equal 47, user.reload.letters
+    end
+  end
+
   def test_destroy
     with_transaction do
       User.last.destroy
