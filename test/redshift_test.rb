@@ -99,6 +99,14 @@ class RedshiftTest < Minitest::Test
         assert_equal({"search_path" => "information_schema, public"},
                        ConnectionWithOption.connection.select_one("show search_path"))
       end
+
+      def test_can_be_set_with_accessor
+        ConnectionWithOption.establish_connection(ActiveRecord::Base.connection_config)
+        ConnectionWithOption.connection.schema_search_path = "information_schema, public"
+        assert_equal({"search_path" => "information_schema, public"},
+                       ConnectionWithOption.connection.select_one("show search_path"))
+
+      end
     end
   end
 end
