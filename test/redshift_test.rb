@@ -108,5 +108,29 @@ class RedshiftTest < Minitest::Test
 
       end
     end
+
+    describe 'quote_table_name' do      
+      def setup
+        @connection = User.connection
+      end
+
+      def test_already_quoted_names_are_preserved
+        assert_equal '"table.name"', @connection.quote_table_name('"table.name"')
+        assert_equal '"schema.name"."table.name"', @connection.quote_table_name('"schema.name"."table.name"')
+      end
+
+      def test_quotes_bare_table_name
+        assert_equal '"table_name"', @connection.quote_table_name("table_name")
+      end
+
+      def test_quotes_qualified_table_name
+        assert_equal '"schema_name"."table_name"', @connection.quote_table_name("schema_name.table_name")
+      end
+
+      def test_quotes_qualified_name_where_one_portion_is_quoted
+        assert_equal '"schema_name"."table.name"', @connection.quote_table_name('schema_name."table.name"')
+        assert_equal '"schema.name"."table_name"', @connection.quote_table_name('"schema.name".table_name')
+      end
+    end
   end
 end
