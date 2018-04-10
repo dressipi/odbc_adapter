@@ -203,6 +203,20 @@ module ODBCAdapter
         quote_column_name(attr)
       end
 
+
+      #this could be
+      # a bare name
+      # an already quoted name
+      # a schema qualified name, either half of which could already be quoted or not
+      def quote_table_name(name)
+        first, second = name.to_s.scan(/[^".\s]+|"[^"]*"/)
+        if first && second
+          "#{super(first)}.#{super(second)}"
+        else
+          super(first)
+        end
+      end
+
       protected
 
 
