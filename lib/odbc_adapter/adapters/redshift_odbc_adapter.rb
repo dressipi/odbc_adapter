@@ -17,6 +17,10 @@ module ODBCAdapter
         %w[information_schema pg_catalog].include?(schema_name) || table_type !~ /TABLE/i
       end
 
+      def supports_ddl_transactions?
+        true
+      end
+
       def native_database_types
         {
           :primary_key=> "BIGINT IDENTITY(1,1) PRIMARY KEY",
