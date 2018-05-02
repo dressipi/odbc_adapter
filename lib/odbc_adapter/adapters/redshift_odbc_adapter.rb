@@ -222,7 +222,7 @@ module ODBCAdapter
       end
 
       def tables(name = nil)
-        query(<<-SQL, 'SCHEMA').map { |row| row[0] }
+        select_values(<<-SQL, 'SCHEMA').map { |row| row[0] }
           SELECT tablename
           FROM pg_tables
           WHERE schemaname = ANY (current_schemas(false))
