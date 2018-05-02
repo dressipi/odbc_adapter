@@ -155,9 +155,10 @@ class RedshiftTest < Minitest::Test
         User.transaction do
           assert(!OtherSchema.table_exists?)
           @connection.execute "create schema other_schema"
-          @connection.execute "create table other_schema.some_table (id integer)"
+          @connection.execute "create table other_schema.some_table (id integer, name varchar(255))"
           OtherSchema.clear_cache!
           assert(OtherSchema.table_exists?)
+          assert_equal(%w(id name), OtherSchema.columns.map(&:name).sort)
           assert(@connection.table_exists?("other_schema.some_table"))
           assert(!@connection.table_exists?("some_table"))
           raise ActiveRecord::Rollback

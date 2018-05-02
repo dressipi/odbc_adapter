@@ -132,6 +132,25 @@ module ODBCAdapter
         @schema_search_path ||= select_rows('SHOW search_path', 'SCHEMA')[0][0]
       end
 
+      def with_schema_search_path(schema)
+        # the default search path includes $user, but this needs to be quoted on resubmitting
+        old_search_path = schema_search_path.gsub(/\$user,/, "'$user',")
+        begin
+          self.schema_search_path = schema
+          yield
+        ensure
+          self.schema_search_path = old_search_path
+        end
+      end
+
+      def columns(maybe_qualified_table_name, name=nil)
+        schema, table_name = extract_schema_and_name(maybe_qualified_table_name)
+        if schema
+          with_schema_search_path(schema) {super(table_name)}
+        else
+          super
+        end
+      end
 
       # Maps logical Rails types to redshift-specific data types.
       if ActiveRecord::VERSION::MAJOR >= 5
@@ -207,17 +226,17 @@ module ODBCAdapter
         quote_column_name(attr)
       end
 
-
       #this could be
       # a bare name
       # an already quoted name
       # a schema qualified name, either half of which could already be quoted or not
       def quote_table_name(name)
-        first, second = name.to_s.scan(/[^".\s]+|"[^"]*"/)
-        if first && second
-          "#{super(first)}.#{super(second)}"
+        schema, table_name = extract_schema_and_name(name)
+        
+        if schema && table_name
+          "#{super(schema)}.#{super(table_name)}"
         else
-          super(first)
+          super(table_name)
         end
       end
 
@@ -240,14 +259,7 @@ module ODBCAdapter
       end
 
       def table_exists?(name)
-        first, second = name.to_s.scan(/[^".\s]+|"[^"]*"/)
-        if second
-          schema = first
-          table_name = second
-        else
-          schema = nil
-          table_name = first
-        end
+        schema, table_name = extract_schema_and_name(name)
         return false unless table_name
 
         exec_query(<<-SQL, 'SCHEMA').rows.first[0].to_i > 0
@@ -264,6 +276,17 @@ module ODBCAdapter
 
       protected
 
+      def extract_schema_and_name name
+        first, second = name.to_s.scan(/[^".\s]+|"[^"]*"/)
+        if second
+          schema = first
+          table_name = second
+        else
+          schema = nil
+          table_name = first
+        end
+        return schema, table_name
+      end
 
       def integer_type_to_sql(limit)
         case limit
