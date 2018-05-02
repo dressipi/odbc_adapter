@@ -221,6 +221,47 @@ module ODBCAdapter
         end
       end
 
+      def tables(name = nil)
+        query(<<-SQL, 'SCHEMA').map { |row| row[0] }
+          SELECT tablename
+          FROM pg_tables
+          WHERE schemaname = ANY (current_schemas(false))
+        SQL
+      end
+
+      def data_sources # :nodoc
+        select_values(<<-SQL, 'SCHEMA')
+          SELECT c.relname
+          FROM pg_class c
+          LEFT JOIN pg_namespace n ON n.oid = c.relnamespace
+          WHERE c.relkind IN ('r', 'v','m') -- (r)elation/table, (v)iew, (m)aterialized view
+          AND n.nspname = ANY (current_schemas(false))
+        SQL
+      end
+
+      def table_exists?(name)
+        first, second = name.to_s.scan(/[^".\s]+|"[^"]*"/)
+        if second
+          schema = first
+          table_name = second
+        else
+          schema = nil
+          table_name = first
+        end
+        return false unless table_name
+
+        exec_query(<<-SQL, 'SCHEMA').rows.first[0].to_i > 0
+            SELECT COUNT(*)
+            FROM pg_class c
+            LEFT JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE c.relkind IN ('r','v','m') -- (r)elation/table, (v)iew, (m)aterialized view
+            AND c.relname = '#{table_name}'
+            AND n.nspname = #{schema ? "'#{schema}'" : 'ANY (current_schemas(false))'}
+        SQL
+      end
+      
+      alias data_source_exists? table_exists?
+
       protected
 
 
