@@ -340,6 +340,19 @@ module ODBCAdapter
 
       private
 
+      def _quote(value)
+        case value
+        when Float
+          if value.infinite? || value.nan?
+            "'#{value}'"
+          else
+            super
+          end
+        else
+          super
+        end
+      end
+
       def configure_connection(connection)
         super
         if @config[:schema_search_path]

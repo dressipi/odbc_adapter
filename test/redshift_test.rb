@@ -181,5 +181,12 @@ class RedshiftTest < Minitest::Test
         end
       end
     end
+
+    describe 'quoting infinity' do
+      def test_quotes_infinity
+        assert_equal("'Infinity'", User.connection.quote(Float::INFINITY))
+        assert_equal("'-Infinity'", User.connection.quote(-Float::INFINITY))
+      end
+    end
   end
 end
