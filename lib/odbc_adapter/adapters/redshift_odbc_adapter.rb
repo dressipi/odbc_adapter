@@ -132,6 +132,25 @@ module ODBCAdapter
         @schema_search_path ||= select_rows('SHOW search_path', 'SCHEMA')[0][0]
       end
 
+      def with_schema_search_path(schema)
+        # the default search path includes $user, but this needs to be quoted on resubmitting
+        old_search_path = schema_search_path.gsub(/\$user,/, "'$user',")
+        begin
+          self.schema_search_path = schema
+          yield
+        ensure
+          self.schema_search_path = old_search_path
+        end
+      end
+
+      def columns(maybe_qualified_table_name, name=nil)
+        schema, table_name = extract_schema_and_name(maybe_qualified_table_name)
+        if schema
+          with_schema_search_path(schema) {super(table_name)}
+        else
+          super
+        end
+      end
 
       # Maps logical Rails types to redshift-specific data types.
       if ActiveRecord::VERSION::MAJOR >= 5
@@ -207,22 +226,67 @@ module ODBCAdapter
         quote_column_name(attr)
       end
 
-
       #this could be
       # a bare name
       # an already quoted name
       # a schema qualified name, either half of which could already be quoted or not
       def quote_table_name(name)
-        first, second = name.to_s.scan(/[^".\s]+|"[^"]*"/)
-        if first && second
-          "#{super(first)}.#{super(second)}"
+        schema, table_name = extract_schema_and_name(name)
+        
+        if schema && table_name
+          "#{super(schema)}.#{super(table_name)}"
         else
-          super(first)
+          super(table_name)
         end
       end
 
+      def tables(name = nil)
+        select_values(<<-SQL, 'SCHEMA').map { |row| row[0] }
+          SELECT tablename
+          FROM pg_tables
+          WHERE schemaname = ANY (current_schemas(false))
+        SQL
+      end
+
+      def data_sources # :nodoc
+        select_values(<<-SQL, 'SCHEMA')
+          SELECT c.relname
+          FROM pg_class c
+          LEFT JOIN pg_namespace n ON n.oid = c.relnamespace
+          WHERE c.relkind IN ('r', 'v','m') -- (r)elation/table, (v)iew, (m)aterialized view
+          AND n.nspname = ANY (current_schemas(false))
+        SQL
+      end
+
+      def table_exists?(name)
+        schema, table_name = extract_schema_and_name(name)
+        return false unless table_name
+
+        exec_query(<<-SQL, 'SCHEMA').rows.first[0].to_i > 0
+            SELECT COUNT(*)
+            FROM pg_class c
+            LEFT JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE c.relkind IN ('r','v','m') -- (r)elation/table, (v)iew, (m)aterialized view
+            AND c.relname = '#{table_name}'
+            AND n.nspname = #{schema ? "'#{schema}'" : 'ANY (current_schemas(false))'}
+        SQL
+      end
+      
+      alias data_source_exists? table_exists?
+
       protected
 
+      def extract_schema_and_name name
+        first, second = name.to_s.scan(/[^".\s]+|"[^"]*"/)
+        if second
+          schema = first
+          table_name = second
+        else
+          schema = nil
+          table_name = first
+        end
+        return schema, table_name
+      end
 
       def integer_type_to_sql(limit)
         case limit
@@ -275,6 +339,19 @@ module ODBCAdapter
       end
 
       private
+
+      def _quote(value)
+        case value
+        when Float
+          if value.infinite? || value.nan?
+            "'#{value}'"
+          else
+            super
+          end
+        else
+          super
+        end
+      end
 
       def configure_connection(connection)
         super

@@ -132,5 +132,61 @@ class RedshiftTest < Minitest::Test
         assert_equal '"schema.name"."table_name"', @connection.quote_table_name('"schema.name".table_name')
       end
     end
+
+    describe 'table_exists' do
+      def setup
+        @connection = User.connection
+      end
+
+      def test_handles_tables_in_the_search_path
+        User.transaction do
+          assert(@connection.table_exists?("users"))
+          @connection.drop_table("users")
+          assert(!@connection.table_exists?("users"))
+          raise ActiveRecord::Rollback
+        end
+      end
+
+      class OtherSchema < ActiveRecord::Base
+        self.table_name = 'other_schema.some_table'
+      end
+
+      def test_handles_tables_not_in_the_search_path
+        User.transaction do
+          assert(!OtherSchema.table_exists?)
+          @connection.execute "create schema other_schema"
+          @connection.execute "create table other_schema.some_table (id integer, name varchar(255))"
+          OtherSchema.clear_cache!
+          assert(OtherSchema.table_exists?)
+          assert_equal(%w(id name), OtherSchema.columns.map(&:name).sort)
+          assert(@connection.table_exists?("other_schema.some_table"))
+          assert(!@connection.table_exists?("some_table"))
+          raise ActiveRecord::Rollback
+        end
+      end
+
+    end
+
+    describe 'tables' do
+      def setup
+        @connection = User.connection
+      end
+      
+      def test_lists_tables_in_schema_search_path
+        User.transaction do
+          @connection.execute "create schema other_schema"
+          @connection.execute "create table other_schema.some_table (id integer)"
+          assert_equal %w[ar_internal_metadata todos users], User.connection.data_sources.sort
+          raise ActiveRecord::Rollback 
+        end
+      end
+    end
+
+    describe 'quoting infinity' do
+      def test_quotes_infinity
+        assert_equal("'Infinity'", User.connection.quote(Float::INFINITY))
+        assert_equal("'-Infinity'", User.connection.quote(-Float::INFINITY))
+      end
+    end
   end
 end
